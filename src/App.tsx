@@ -227,11 +227,13 @@ export default function App() {
           {activePage === 'overview' && (
             <OverviewPage
               tasks={derivedTasks}
+              owners={OWNERS}
               isLoading={isLoading}
               error={error}
               onRetry={loadData}
               selectedTaskId={selectedTaskId}
               onSelectTask={setSelectedTaskId}
+              onUpdateTask={handleUpdateTask}
               onFilterByStatus={handleFilterByStatusFromOverview}
               onApproveTask={handleApproveTask}
               onRequestReturn={setReturnDialogTask}

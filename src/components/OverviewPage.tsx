@@ -1,5 +1,6 @@
-import { DerivedTask, TaskStatus } from '../types/dashboard';
+import { DerivedTask, Owner, Task, TaskStatus } from '../types/dashboard';
 import { formatDueDateDisplay, formatOverdueDays } from '../utils/dates';
+import { NeedsYouTodayPanel } from './NeedsYouTodayPanel';
 import { OwnerAvatar } from './OwnerAvatar';
 import { EmptyState, ErrorState, SummaryCardsSkeleton, TableSkeleton } from './States';
 import { StatusBadge } from './StatusBadge';
@@ -7,11 +8,13 @@ import { TaskTable } from './TaskTable';
 
 interface OverviewPageProps {
   tasks: DerivedTask[];
+  owners: Owner[];
   isLoading: boolean;
   error: string | null;
   onRetry: () => void;
   selectedTaskId: string | null;
   onSelectTask: (taskId: string) => void;
+  onUpdateTask: (taskId: string, updates: Partial<Task>, toastMessage: string) => void;
   onFilterByStatus: (status: TaskStatus) => void;
   onApproveTask: (taskId: string) => void;
   onRequestReturn: (task: DerivedTask) => void;
@@ -19,11 +22,13 @@ interface OverviewPageProps {
 
 export function OverviewPage({
   tasks,
+  owners,
   isLoading,
   error,
   onRetry,
   selectedTaskId,
   onSelectTask,
+  onUpdateTask,
   onFilterByStatus,
   onApproveTask,
   onRequestReturn,
@@ -156,6 +161,15 @@ export function OverviewPage({
               </p>
             </button>
           </section>
+
+          {/* Needs you today: top 5 ranked tasks */}
+          <NeedsYouTodayPanel
+            tasks={tasks}
+            owners={owners}
+            selectedTaskId={selectedTaskId}
+            onSelectTask={onSelectTask}
+            onUpdateTask={onUpdateTask}
+          />
 
           {/* Overdue tasks list, most overdue first */}
           <section aria-labelledby="overdue-heading" className="space-y-[12px]">
