@@ -1,5 +1,7 @@
 export type TaskStatus = 'Overdue' | 'Due soon' | 'On track' | 'Done' | 'Blocked';
 
+export type ProjectStatus = 'Overdue' | 'At risk' | 'On track';
+
 export type TaskManualState = 'active' | 'blocked' | 'done';
 
 export type ApprovalStatus = 'none' | 'awaiting' | 'approved';

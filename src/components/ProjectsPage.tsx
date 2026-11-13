@@ -7,7 +7,9 @@ import {
   ProjectSummary,
 } from '../types/dashboard';
 import { OwnerAvatar } from './OwnerAvatar';
+import { getProjectStatus } from './ProjectSummaryPage';
 import { EmptyState, ErrorState, TableSkeleton } from './States';
+import { ProjectStatusBadge } from './StatusBadge';
 
 interface ProjectsPageProps {
   projects: Project[];
@@ -112,7 +114,7 @@ export function ProjectsPage({
         </h1>
         {!isLoading && !error && (
           <p className="text-[12px] font-medium text-[#57606A] tabular-nums">
-            {projects.length} active client projects · select a project to view its tasks
+            {projects.length} active client projects · select a project to view its summary
           </p>
         )}
       </div>
@@ -144,48 +146,62 @@ export function ProjectsPage({
                 {renderSortHeader('open', 'Open', true)}
                 {renderSortHeader('overdue', 'Overdue', true)}
                 {renderSortHeader('done', 'Done', true)}
+                <th
+                  scope="col"
+                  className="px-[16px] text-[12px] font-medium text-[#57606A] whitespace-nowrap"
+                >
+                  Status
+                </th>
               </tr>
             </thead>
             <tbody>
-              {sortedSummaries.map((item) => (
-                <tr
-                  key={item.project.id}
-                  tabIndex={0}
-                  onClick={() => onSelectProject(item.project.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      onSelectProject(item.project.id);
-                    }
-                  }}
-                  className="h-[44px] cursor-pointer border-b border-[#D0D7DE] last:border-b-0 hover:bg-[#F6F8FA] transition-colors"
-                >
-                  <td className="px-[16px] text-[14px] font-medium text-[#1B1F24] whitespace-nowrap">
-                    {item.project.name}
-                  </td>
-                  <td className="px-[16px] text-[14px] text-[#57606A] whitespace-nowrap">
-                    {item.project.client}
-                  </td>
-                  <td className="px-[16px] whitespace-nowrap">
-                    <OwnerAvatar owner={item.lead} />
-                  </td>
-                  <td className="px-[16px] text-right text-[14px] tabular-nums text-[#1B1F24] whitespace-nowrap">
-                    {item.openCount}
-                  </td>
-                  <td
-                    className={`px-[16px] text-right text-[14px] tabular-nums whitespace-nowrap ${
-                      item.overdueCount > 0
-                        ? 'font-semibold text-[#B42318]'
-                        : 'text-[#57606A]'
-                    }`}
+              {sortedSummaries.map((item) => {
+                const projectTasks = tasks.filter((t) => t.projectId === item.project.id);
+                const projectStatus = getProjectStatus(projectTasks);
+
+                return (
+                  <tr
+                    key={item.project.id}
+                    tabIndex={0}
+                    onClick={() => onSelectProject(item.project.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onSelectProject(item.project.id);
+                      }
+                    }}
+                    className="h-[44px] cursor-pointer border-b border-[#D0D7DE] last:border-b-0 hover:bg-[#F6F8FA] transition-colors"
                   >
-                    {item.overdueCount}
-                  </td>
-                  <td className="px-[16px] text-right text-[14px] tabular-nums text-[#57606A] whitespace-nowrap">
-                    {item.doneCount}
-                  </td>
-                </tr>
-              ))}
+                    <td className="px-[16px] text-[14px] font-medium text-[#1B1F24] whitespace-nowrap">
+                      {item.project.name}
+                    </td>
+                    <td className="px-[16px] text-[14px] text-[#57606A] whitespace-nowrap">
+                      {item.project.client}
+                    </td>
+                    <td className="px-[16px] whitespace-nowrap">
+                      <OwnerAvatar owner={item.lead} />
+                    </td>
+                    <td className="px-[16px] text-right text-[14px] tabular-nums text-[#1B1F24] whitespace-nowrap">
+                      {item.openCount}
+                    </td>
+                    <td
+                      className={`px-[16px] text-right text-[14px] tabular-nums whitespace-nowrap ${
+                        item.overdueCount > 0
+                          ? 'font-semibold text-[#B42318]'
+                          : 'text-[#57606A]'
+                      }`}
+                    >
+                      {item.overdueCount}
+                    </td>
+                    <td className="px-[16px] text-right text-[14px] tabular-nums text-[#57606A] whitespace-nowrap">
+                      {item.doneCount}
+                    </td>
+                    <td className="px-[16px] whitespace-nowrap">
+                      <ProjectStatusBadge status={projectStatus} />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { OverviewPage } from './components/OverviewPage';
 import { ProjectsPage } from './components/ProjectsPage';
+import { ProjectSummaryPage } from './components/ProjectSummaryPage';
 import { ReturnTaskDialog } from './components/ReturnTaskDialog';
 import { Sidebar } from './components/Sidebar';
 import { TaskDetailPanel } from './components/TaskDetailPanel';
@@ -31,6 +32,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [returnDialogTask, setReturnDialogTask] = useState<DerivedTask | null>(null);
 
   // Persistent filter & sort state across page navigation
@@ -115,6 +117,11 @@ export default function App() {
     [derivedTasks, selectedTaskId]
   );
 
+  const selectedProject = useMemo(
+    () => PROJECTS.find((p) => p.id === selectedProjectId) ?? null,
+    [selectedProjectId]
+  );
+
   const handleUpdateTask = useCallback(
     (taskId: string, updates: Partial<Task>, toastMessage: string) => {
       const previousTask = tasks.find((t) => t.id === taskId);
@@ -191,13 +198,55 @@ export default function App() {
     setActivePage('tasks');
   }, []);
 
+  const handleNavigate = useCallback((page: NavPage) => {
+    setActivePage(page);
+    if (page === 'projects') {
+      setSelectedProjectId(null);
+    }
+  }, []);
+
   const handleSelectProject = useCallback((projectId: string) => {
-    setTaskFilters((prev) => ({
-      ...prev,
+    setSelectedProjectId(projectId);
+  }, []);
+
+  const handleViewAllProjectTasks = useCallback((projectId: string) => {
+    setTaskFilters({
+      search: '',
+      status: 'all',
+      ownerId: 'all',
       projectId,
-    }));
+    });
+    setSelectedProjectId(null);
     setActivePage('tasks');
   }, []);
+
+  const handleCopyProjectSummary = useCallback(
+    async (summaryText: string) => {
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(summaryText);
+        } else {
+          const textarea = document.createElement('textarea');
+          textarea.value = summaryText;
+          textarea.setAttribute('readonly', '');
+          textarea.style.position = 'fixed';
+          textarea.style.opacity = '0';
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+        }
+        showToast({
+          message: 'Summary copied to clipboard',
+        });
+      } catch {
+        showToast({
+          message: 'Could not copy summary to clipboard',
+        });
+      }
+    },
+    [showToast]
+  );
 
   const handleToggleDueDateSort = useCallback(() => {
     setDueDateSort((prev) => (prev === 'asc' ? 'desc' : 'asc'));
@@ -218,7 +267,7 @@ export default function App() {
     <div className="flex min-h-screen flex-col md:flex-row bg-[#F6F8FA] text-[#1B1F24]">
       <Sidebar
         activePage={activePage}
-        onNavigate={setActivePage}
+        onNavigate={handleNavigate}
         overdueCount={overdueCount}
       />
 
@@ -240,20 +289,35 @@ export default function App() {
             />
           )}
 
-          {activePage === 'projects' && (
-            <ProjectsPage
-              projects={PROJECTS}
-              owners={OWNERS}
-              tasks={derivedTasks}
-              sortField={projectSortField}
-              sortDir={projectSortDir}
-              onToggleSort={handleToggleProjectSort}
-              onSelectProject={handleSelectProject}
-              isLoading={isLoading}
-              error={error}
-              onRetry={loadData}
-            />
-          )}
+          {activePage === 'projects' &&
+            (selectedProject ? (
+              <ProjectSummaryPage
+                project={selectedProject}
+                owners={OWNERS}
+                tasks={derivedTasks}
+                isLoading={isLoading}
+                error={error}
+                onRetry={loadData}
+                onBack={() => setSelectedProjectId(null)}
+                onViewAllInTasks={handleViewAllProjectTasks}
+                selectedTaskId={selectedTaskId}
+                onSelectTask={setSelectedTaskId}
+                onCopySummary={handleCopyProjectSummary}
+              />
+            ) : (
+              <ProjectsPage
+                projects={PROJECTS}
+                owners={OWNERS}
+                tasks={derivedTasks}
+                sortField={projectSortField}
+                sortDir={projectSortDir}
+                onToggleSort={handleToggleProjectSort}
+                onSelectProject={handleSelectProject}
+                isLoading={isLoading}
+                error={error}
+                onRetry={loadData}
+              />
+            ))}
 
           {activePage === 'tasks' && (
             <TasksPage
