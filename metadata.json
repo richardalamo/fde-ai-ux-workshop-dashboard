@@ -1,0 +1,6 @@
+{
+  "name": "Project tracker",
+  "description": "Internal project dashboard for tracking overdue tasks, weekly deadlines, and project status.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
