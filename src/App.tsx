@@ -6,12 +6,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { OverviewPage } from './components/OverviewPage';
 import { ProjectsPage } from './components/ProjectsPage';
+import { ReturnTaskDialog } from './components/ReturnTaskDialog';
 import { Sidebar } from './components/Sidebar';
 import { TaskDetailPanel } from './components/TaskDetailPanel';
 import { TasksPage } from './components/TasksPage';
 import { Toast } from './components/Toast';
 import { deriveTasks, generateInitialTasks, OWNERS, PROJECTS } from './data/sampleData';
 import {
+  DerivedTask,
   DueDateSort,
   NavPage,
   ProjectSortField,
@@ -29,6 +31,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [returnDialogTask, setReturnDialogTask] = useState<DerivedTask | null>(null);
 
   // Persistent filter & sort state across page navigation
   const [taskFilters, setTaskFilters] = useState<TaskFilters>({
@@ -145,6 +148,39 @@ export default function App() {
     [showToast]
   );
 
+  const handleApproveTask = useCallback(
+    (taskId: string) => {
+      handleUpdateTask(
+        taskId,
+        {
+          manualState: 'done',
+          approvalStatus: 'approved',
+          returnReason: undefined,
+          updatedAt: getTodayString(),
+        },
+        'Task approved'
+      );
+    },
+    [handleUpdateTask]
+  );
+
+  const handleConfirmReturn = useCallback(
+    (taskId: string, reason: string) => {
+      handleUpdateTask(
+        taskId,
+        {
+          manualState: 'active',
+          approvalStatus: 'none',
+          returnReason: reason,
+          updatedAt: getTodayString(),
+        },
+        'Task returned'
+      );
+      setReturnDialogTask(null);
+    },
+    [handleUpdateTask]
+  );
+
   const handleFilterByStatusFromOverview = useCallback((status: TaskStatus) => {
     setTaskFilters({
       search: '',
@@ -197,6 +233,8 @@ export default function App() {
               selectedTaskId={selectedTaskId}
               onSelectTask={setSelectedTaskId}
               onFilterByStatus={handleFilterByStatusFromOverview}
+              onApproveTask={handleApproveTask}
+              onRequestReturn={setReturnDialogTask}
             />
           )}
 
@@ -240,6 +278,15 @@ export default function App() {
         onClose={() => setSelectedTaskId(null)}
         onUpdateTask={handleUpdateTask}
         onDeleteTask={handleDeleteTask}
+        onApproveTask={handleApproveTask}
+        onRequestReturn={setReturnDialogTask}
+        isReturnDialogOpen={returnDialogTask !== null}
+      />
+
+      <ReturnTaskDialog
+        task={returnDialogTask}
+        onConfirm={handleConfirmReturn}
+        onCancel={() => setReturnDialogTask(null)}
       />
 
       <Toast toast={toast} onDismiss={dismissToast} />

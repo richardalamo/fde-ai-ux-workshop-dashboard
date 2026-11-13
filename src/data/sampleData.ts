@@ -1,4 +1,12 @@
-import { DerivedTask, Owner, Project, Task, TaskManualState, TaskStatus } from '../types/dashboard';
+import {
+  ApprovalStatus,
+  DerivedTask,
+  Owner,
+  Project,
+  Task,
+  TaskManualState,
+  TaskStatus,
+} from '../types/dashboard';
 import { addDays, getDiffDays, getTodayString } from '../utils/dates';
 
 export const OWNERS: Owner[] = [
@@ -93,9 +101,15 @@ const TASK_NOTES = [
   'Escalated during internal standup so dependencies stay visible ahead of Friday review.',
 ];
 
+const RETURN_REASONS = [
+  'Client sign-off email is missing from the handoff notes; please attach confirmation before closing.',
+  'Staging smoke test still showed an export column mismatch on negative amounts.',
+];
+
 interface ScheduleSpec {
   offsetDays: number;
   manualState: TaskManualState;
+  approvalStatus: ApprovalStatus;
 }
 
 function buildScheduleDistribution(): ScheduleSpec[] {
@@ -107,37 +121,38 @@ function buildScheduleDistribution(): ScheduleSpec[] {
     -5, -5, -4, -4, -3, -3, -2, -2, -1, -1,
   ];
   for (const offset of overdueOffsets) {
-    specs.push({ offsetDays: offset, manualState: 'active' });
+    specs.push({ offsetDays: offset, manualState: 'active', approvalStatus: 'none' });
   }
 
   // 16 due soon tasks (0 to 3 days from today)
   const dueSoonOffsets = [0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3];
   for (const offset of dueSoonOffsets) {
-    specs.push({ offsetDays: offset, manualState: 'active' });
+    specs.push({ offsetDays: offset, manualState: 'active', approvalStatus: 'none' });
   }
 
   // 18 due later this week (4 to 7 days from today)
   const thisWeekOffsets = [4, 4, 4, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 7, 7, 7, 7];
   for (const offset of thisWeekOffsets) {
-    specs.push({ offsetDays: offset, manualState: 'active' });
+    specs.push({ offsetDays: offset, manualState: 'active', approvalStatus: 'none' });
   }
 
   // 11 blocked tasks (some past due, some this week, some later)
   const blockedOffsets = [-7, -4, -2, 0, 1, 3, 5, 8, 10, 14, 18];
   for (const offset of blockedOffsets) {
-    specs.push({ offsetDays: offset, manualState: 'blocked' });
+    specs.push({ offsetDays: offset, manualState: 'blocked', approvalStatus: 'none' });
   }
 
   // 38 on track tasks (8 to 34 days from today)
   for (let i = 0; i < 38; i++) {
     const offset = 8 + ((i * 7) % 27);
-    specs.push({ offsetDays: offset, manualState: 'active' });
+    specs.push({ offsetDays: offset, manualState: 'active', approvalStatus: 'none' });
   }
 
-  // 47 done tasks (completed across -25 to +5 days)
+  // 47 done tasks: 6 awaiting approval, 41 approved
   for (let i = 0; i < 47; i++) {
     const offset = -24 + ((i * 3) % 29);
-    specs.push({ offsetDays: offset, manualState: 'done' });
+    const approvalStatus: ApprovalStatus = i < 6 ? 'awaiting' : 'approved';
+    specs.push({ offsetDays: offset, manualState: 'done', approvalStatus });
   }
 
   return specs; // Total: 20 + 16 + 18 + 11 + 38 + 47 = 150 tasks
@@ -169,6 +184,11 @@ export function generateInitialTasks(todayStr = getTodayString()): Task[] {
       ownerId: owner.id,
       dueDate,
       manualState: spec.manualState,
+      approvalStatus: spec.approvalStatus,
+      returnReason:
+        spec.manualState === 'active' && (i === 18 || i === 22)
+          ? RETURN_REASONS[i === 18 ? 0 : 1]
+          : undefined,
       blockerReason:
         spec.manualState === 'blocked'
           ? BLOCKER_REASONS[i % BLOCKER_REASONS.length]

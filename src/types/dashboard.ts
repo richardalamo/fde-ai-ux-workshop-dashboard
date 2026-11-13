@@ -2,6 +2,8 @@ export type TaskStatus = 'Overdue' | 'Due soon' | 'On track' | 'Done' | 'Blocked
 
 export type TaskManualState = 'active' | 'blocked' | 'done';
 
+export type ApprovalStatus = 'none' | 'awaiting' | 'approved';
+
 export interface Owner {
   id: string;
   name: string;
@@ -23,6 +25,8 @@ export interface Task {
   ownerId: string;
   dueDate: string; // YYYY-MM-DD
   manualState: TaskManualState;
+  approvalStatus: ApprovalStatus;
+  returnReason?: string;
   blockerReason?: string;
   notes: string;
   updatedAt: string; // YYYY-MM-DD

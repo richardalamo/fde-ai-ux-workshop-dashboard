@@ -51,9 +51,9 @@ export function SummaryCardsSkeleton() {
   return (
     <div
       aria-label="Loading summary"
-      className="grid grid-cols-1 gap-[16px] sm:grid-cols-3"
+      className="grid grid-cols-1 gap-[16px] sm:grid-cols-2 lg:grid-cols-4"
     >
-      {[0, 1, 2].map((idx) => (
+      {[0, 1, 2, 3].map((idx) => (
         <div
           key={idx}
           className="rounded-[8px] border border-[#D0D7DE] bg-[#FFFFFF] p-[16px]"

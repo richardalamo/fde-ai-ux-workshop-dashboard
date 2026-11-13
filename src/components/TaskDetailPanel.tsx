@@ -12,6 +12,9 @@ interface TaskDetailPanelProps {
   onClose: () => void;
   onUpdateTask: (taskId: string, updates: Partial<Task>, toastMessage: string) => void;
   onDeleteTask: (taskId: string) => void;
+  onApproveTask: (taskId: string) => void;
+  onRequestReturn: (task: DerivedTask) => void;
+  isReturnDialogOpen: boolean;
 }
 
 export function TaskDetailPanel({
@@ -20,6 +23,9 @@ export function TaskDetailPanel({
   onClose,
   onUpdateTask,
   onDeleteTask,
+  onApproveTask,
+  onRequestReturn,
+  isReturnDialogOpen,
 }: TaskDetailPanelProps) {
   const [title, setTitle] = useState('');
   const [ownerId, setOwnerId] = useState('');
@@ -43,13 +49,13 @@ export function TaskDetailPanel({
   useEffect(() => {
     if (!task) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !confirmDeleteOpen) {
+      if (e.key === 'Escape' && !confirmDeleteOpen && !isReturnDialogOpen) {
         onClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [task, confirmDeleteOpen, onClose]);
+  }, [task, confirmDeleteOpen, isReturnDialogOpen, onClose]);
 
   if (!task) return null;
 
@@ -70,6 +76,15 @@ export function TaskDetailPanel({
     e.preventDefault();
     if (!title.trim() || !dueDate) return;
 
+    const transitioningToDone = task.manualState !== 'done' && manualState === 'done';
+    const leavingDone = task.manualState === 'done' && manualState !== 'done';
+
+    const nextApprovalStatus = transitioningToDone
+      ? 'awaiting'
+      : leavingDone
+        ? 'none'
+        : task.approvalStatus;
+
     onUpdateTask(
       task.id,
       {
@@ -77,11 +92,13 @@ export function TaskDetailPanel({
         ownerId,
         dueDate,
         manualState,
+        approvalStatus: nextApprovalStatus,
+        returnReason: transitioningToDone ? undefined : task.returnReason,
         blockerReason: manualState === 'blocked' ? blockerReason.trim() : undefined,
         notes: notes.trim(),
         updatedAt: todayStr,
       },
-      'Task updated'
+      transitioningToDone ? 'Marked done · waiting for approval' : 'Task updated'
     );
   };
 
@@ -92,13 +109,17 @@ export function TaskDetailPanel({
       task.id,
       {
         manualState: nextState,
+        approvalStatus: nextState === 'done' ? 'awaiting' : 'none',
+        returnReason: nextState === 'done' ? undefined : task.returnReason,
         updatedAt: todayStr,
       },
-      nextState === 'done' ? 'Task marked done' : 'Task reopened'
+      nextState === 'done' ? 'Marked done · waiting for approval' : 'Task reopened'
     );
   };
 
   const isDone = task.manualState === 'done';
+  const isAwaitingApproval = isDone && task.approvalStatus === 'awaiting';
+  const isApproved = isDone && task.approvalStatus === 'approved';
 
   return (
     <>
@@ -120,6 +141,16 @@ export function TaskDetailPanel({
               {previewStatus === 'Overdue' && (
                 <span className="text-[12px] font-medium text-[#B42318] tabular-nums">
                   {formatOverdueDays(Math.abs(previewDiffDays))}
+                </span>
+              )}
+              {isAwaitingApproval && manualState === 'done' && (
+                <span className="text-[12px] font-medium text-[#57606A]">
+                  Awaiting approval
+                </span>
+              )}
+              {isApproved && manualState === 'done' && (
+                <span className="text-[12px] font-medium text-[#57606A]">
+                  Approved
                 </span>
               )}
             </div>
@@ -153,6 +184,17 @@ export function TaskDetailPanel({
                   className="mt-[8px] w-full rounded-[6px] border border-[#D0D7DE] bg-[#FFFFFF] px-[12px] py-[8px] text-[16px] font-semibold text-[#1B1F24]"
                 />
               </div>
+
+              {task.returnReason && (
+                <div className="rounded-[6px] border border-[#D0D7DE] bg-[#F6F8FA] p-[12px]">
+                  <p className="text-[12px] font-medium text-[#57606A]">
+                    Returned for revision
+                  </p>
+                  <p className="mt-[4px] text-[14px] leading-[20px] text-[#1B1F24]">
+                    {task.returnReason}
+                  </p>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 gap-[16px] sm:grid-cols-2">
                 <div>
@@ -225,7 +267,7 @@ export function TaskDetailPanel({
                   })}
                 </div>
                 <p className="mt-[4px] text-[12px] text-[#57606A]">
-                  In-progress tasks are marked overdue or due soon automatically from their due date.
+                  Tasks marked Done wait for manager approval before closing.
                 </p>
               </div>
 
@@ -282,17 +324,40 @@ export function TaskDetailPanel({
               </button>
 
               <div className="flex items-center gap-[8px]">
-                <button
-                  type="button"
-                  onClick={handleQuickDoneToggle}
-                  className={`inline-flex min-h-[36px] items-center justify-center rounded-[6px] px-[12px] py-[8px] text-[14px] font-medium transition-colors whitespace-nowrap ${
-                    !isDirty && !isDone
-                      ? 'bg-[#2B59C3] text-[#FFFFFF] hover:bg-[#22479E]'
-                      : 'border border-[#D0D7DE] bg-[#FFFFFF] text-[#1B1F24] hover:bg-[#F6F8FA]'
-                  }`}
-                >
-                  {isDone ? 'Reopen' : 'Mark done'}
-                </button>
+                {isAwaitingApproval ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => onRequestReturn(task)}
+                      className="inline-flex min-h-[36px] items-center justify-center rounded-[6px] border border-[#D0D7DE] bg-[#FFFFFF] px-[12px] py-[8px] text-[14px] font-medium text-[#1B1F24] hover:bg-[#F6F8FA] transition-colors whitespace-nowrap"
+                    >
+                      Return
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onApproveTask(task.id)}
+                      className={`inline-flex min-h-[36px] items-center justify-center rounded-[6px] px-[12px] py-[8px] text-[14px] font-medium transition-colors whitespace-nowrap ${
+                        !isDirty
+                          ? 'bg-[#2B59C3] text-[#FFFFFF] hover:bg-[#22479E]'
+                          : 'border border-[#D0D7DE] bg-[#FFFFFF] text-[#1B1F24] hover:bg-[#F6F8FA]'
+                      }`}
+                    >
+                      Approve
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleQuickDoneToggle}
+                    className={`inline-flex min-h-[36px] items-center justify-center rounded-[6px] px-[12px] py-[8px] text-[14px] font-medium transition-colors whitespace-nowrap ${
+                      !isDirty && !isDone
+                        ? 'bg-[#2B59C3] text-[#FFFFFF] hover:bg-[#22479E]'
+                        : 'border border-[#D0D7DE] bg-[#FFFFFF] text-[#1B1F24] hover:bg-[#F6F8FA]'
+                    }`}
+                  >
+                    {isDone ? 'Reopen' : 'Mark done'}
+                  </button>
+                )}
 
                 {isDirty && (
                   <button
